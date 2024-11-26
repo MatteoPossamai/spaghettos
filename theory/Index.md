@@ -6,4 +6,4 @@
 4. [Segmentation](./segmentation.md)
 5. [Disk access](./disk.md)
 6. [GDT and protected mode](./gdt.md)
-TODO: [Video](https://www.youtube.com/watch?v=EpFUzjYehxs)
+7. [Start the kernel](./start_kernel.md)
