@@ -1,13 +1,22 @@
 #!/usr/bin/bash
 
-# Compile
-i386-elf-gcc -ffreestanding -c function.c -o function.o
+language=$1
 
+if [ $language = "C" ]; then
+    # Compile and link - C
+    i386-elf-gcc -ffreestanding -c spaghettos/kernel/kernel.c -o kernel.o
+    i386-elf-ld -o kernel.bin -Ttext 0x0 --oformat binary kernel.o
+elif [ $language = "C++" ]; then
+    # Compile and link - C++
+    i386-elf-g++ -ffreestanding -c spaghettos/kernel/kernel.cpp -o kernel.o
+    i386-elf-ld -o kernel.bin -Ttext 0x0 --oformat binary kernel.o
+else
+    echo "Not supported language for kernel"
+fi
+
+# --- Extra ---
 # Examine machine code
-i386-elf-objdump -d function.o
-
-# Link
-i386-elf-ld -o function.bin -Ttext 0x0 --oformat binary function.o
-
+# i386-elf-objdump -d kernel.o
 # Decompile to see machine code
-ndisasm -b 32 function.bin
+# ndisasm -b 32 kernel.bin
+# --- End Extra --- 

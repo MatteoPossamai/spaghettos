@@ -26,14 +26,27 @@ disk_load:
     popa
     ret
 
-
 disk_error:
+    pusha
     mov bx, DISK_ERROR
     call print
     call print_nl
-    mov dh, ah ; ah = error code, dl = disk drive that dropped the error
-    call print_hex ; check out the code at http://stanislavs.org/helppc/int_13-1.html
+    mov dh, ah    ; ah = error code
+    call print_hex
+    
+    ; Print more debug info
+    mov bx, DEBUG_DRIVE
+    call print
+    mov dx, 0
+    mov dl, [BOOT_DRIVE]
+    call print_hex
+    
+    popa
     jmp disk_loop
+
+DISK_ERROR: db "Disk read error, code: ", 0
+DEBUG_DRIVE: db ", Drive: ", 0
+
 
 sectors_error:
     mov bx, SECTORS_ERROR
@@ -42,5 +55,4 @@ sectors_error:
 disk_loop:
     jmp $
 
-DISK_ERROR: db "Disk read error", 0
 SECTORS_ERROR: db "Incorrect number of sectors read", 0
