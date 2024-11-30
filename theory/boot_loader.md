@@ -85,3 +85,16 @@ CONSTANT_NAME equ 0xb8000
 To get data from the keyboard, you have to set the `ah` register to be 0, and then call the interrupt `0x16`. In output, we will have in `al` the ASCII code, and in `ah` the scancode. 
 
 [Example](../spaghettos/asm/examples/keyboard_write.asm)
+
+## Bios settings
+By tuning the following registers, you can change the values of how the BIOS looks like:
+```asm
+mov ah , 0x0b 
+mov bh , 0x0
+mov bl , 0x01
+int 0x10
+```
+
+In `ah` you can put what you want to change (in the example, the background), in `bh` the page, and in `bl` the parameter (in this case, blue).
+
+For all the infos, refer to the [Wiki](https://en.wikipedia.org/wiki/INT_10H). 
