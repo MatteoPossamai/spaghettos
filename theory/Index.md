@@ -7,3 +7,4 @@
 5. [Disk access](./disk.md)
 6. [GDT and protected mode](./gdt.md)
 7. [Start the kernel](./start_kernel.md)
+8. [Kernel - Basics](./develop_kernel_1.md)
