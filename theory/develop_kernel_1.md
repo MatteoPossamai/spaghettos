@@ -29,4 +29,8 @@ void kernel_main() {
 }
 ```
 
-TODO: Page 139
+## Keyboard
+Keyboard is the main input source. We need to capture the input. To do so, x86 uses interrupt signals, that we have to bind to a function to be able to compute it. Then we can receive the button that has been pressed, and from there interact with the OS as we wish. Once a key get touched, we do not get the ASCII code, but we get the `scan code`. [Here](https://wiki.osdev.org/PS/2_Keyboard) and in depth guide about all the `scan codes`. 
+
+### PIC (Programmable Interrupt Controller)
+The PIC is a chip (hardware) that generates interrupts. The keyboard hardware will notify the PIC, that in turn, at a good time will notify the CPU, that then will execute the coroutine that we defined earlier. All the inputs need to be read in order of submission, otherwise the next event will not be accessible. 
