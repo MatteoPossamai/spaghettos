@@ -1,84 +1,151 @@
-[org 0x7c00] 	; Set the offset to bootsector
-[bits 16]		; 16 bit operation
+[org 0x7c00]
+[bits 16]
 
-; Set to video mode
-mov ah, 0x00    ; Set video mode function
-mov al, 0x03    ; Mode 3 (80x25 text mode)
-int 0x10        ; BIOS video interrupt
+; Set video mode
+mov ah, 0x00
+mov al, 0x03
+int 0x10
 
-; Boot Loader
-mov bx , 0x1000 ; Memory offset to which kernel will be loaded
-mov ah , 0x02   ; Bios Read Sector Function
-mov al , 30     ; No. of sectors to read(If your kernel won't fit into 30 sectors , you may need to provide the correct no. of sectors to read)
-mov ch , 0x00   ; Select Cylinder 0 from harddisk
-mov dh , 0x00   ; Select head 0 from hard disk
-mov cl , 0x02   ; Start Reading from Second sector(Sector just after boot sector)
+; Load kernel
+mov bx, 0x1000
+mov ah, 0x02
+mov al, 30
+mov ch, 0x00
+mov dh, 0x00
+mov cl, 0x02
+int 0x13
 
-int 0x13        ; Bios Interrupt Relating to Disk functions
+; Enable A20 line
+in al, 0x92
+or al, 2
+out 0x92, al
 
-
-; Switch To Protected Mode
-cli  			; Turns Interrupts off
-lgdt [GDT_DESC] ; Loads Our GDT
-
-; Set PROTECTION ENABLE bit in CONTROL REGISTER 0 (cr0)
-mov eax , cr0
-or  eax , 0x1
-mov cr0 , eax  ; Switch To Protected Mode
-
-jmp  CODE_SEG:INIT_PM ; Jumps To Our 32 bit Code
-;Forces the cpu to flush out contents in cache memory
+; Load GDT and enter protected mode
+cli
+lgdt [GDT.Pointer]
+mov eax, cr0
+or eax, 1
+mov cr0, eax
+jmp CODE_SEG:ProtectedMode
 
 [bits 32]
+ProtectedMode:
+    mov ax, DATA_SEG
+    mov ds, ax
+    mov es, ax
+    mov fs, ax
+    mov gs, ax
+    mov ss, ax
+    
+    ; Set up page tables
+    mov edi, 0x1000
+    mov cr3, edi
+    xor eax, eax
+    mov ecx, 4096
+    rep stosd
+    mov edi, cr3
 
-INIT_PM:
-mov ax , DATA_SEG
-mov ds , ax
-mov ss , ax
-mov es , ax
-mov fs , ax
-mov gs , ax
+    ; PML4
+    mov DWORD [edi], 0x2003
+    add edi, 0x1000
+    
+    ; PDPT
+    mov DWORD [edi], 0x3003
+    add edi, 0x1000
+    
+    ; PD
+    mov DWORD [edi], 0x4003
+    add edi, 0x1000
+    
+    ; PT
+    mov ebx, 0x00000003
+    mov ecx, 512
+    
+.SetEntry:
+    mov DWORD [edi], ebx
+    add ebx, 0x1000
+    add edi, 8
+    loop .SetEntry
 
-mov ebp , 0x90000
-mov esp , ebp ; Updates Stack Segment
+    ; Enable PAE
+    mov eax, cr4
+    or eax, 1 << 5
+    mov cr4, eax
 
+    ; Set EFER.LME
+    mov ecx, 0xC0000080
+    rdmsr
+    or eax, 1 << 8
+    wrmsr
 
-call 0x1000 		
-jmp $ 
+    ; Enable paging
+    mov eax, cr0
+    or eax, 1 << 31
+    mov cr0, eax
 
-; GDT Definition for our Kernel 
-GDT_BEGIN:
+    lgdt [GDT64.Pointer64]
+    jmp CODE_SEG:LongMode
 
-GDT_NULL_DESC:;The  Mandatory  Null  Descriptor
-	dd 0x0
-	dd 0x0
+[bits 64]
+LongMode:
+    mov rax, DATA_SEG
+    mov ds, ax
+    mov es, ax
+    mov fs, ax
+    mov gs, ax
+    mov ss, ax
 
-GDT_CODE_SEG:
-	dw 0xffff		;Limit
-	dw 0x0			;Base
-	db 0x0			;Base
-	db 10011010b	;Flags
-	db 11001111b	;Flags
-	db 0x0			;Base
+    mov rsp, 0x90000
+    
+    ; Jump to kernel
+    call 0x1000
+    
+    jmp $
 
-GDT_DATA_SEG:
-	dw 0xffff		;Limit
-	dw 0x0			;Base
-	db 0x0			;Base
-	db 10010010b	;Flags
-	db 11001111b	;Flags
-	db 0x0			;Base
+GDT:
+.Null:
+    dq 0
+.Code:
+    dw 0xFFFF
+    dw 0
+    db 0
+    db 10011010b
+    db 11001111b
+    db 0
+.Data:
+    dw 0xFFFF
+    dw 0
+    db 0
+    db 10010010b
+    db 11001111b
+    db 0
+.Pointer:
+    dw $ - GDT - 1
+    dd GDT
 
-GDT_END:
+GDT64:
+.Null:
+    dq 0
+.Code:
+    dw 0
+    dw 0
+    db 0
+    db 10011010b
+    db 00100000b
+    db 0
+.Data:
+    dw 0
+    dw 0
+    db 0
+    db 10010010b
+    db 00000000b
+    db 0
+.Pointer64:
+    dw $ - GDT64 - 1
+    dq GDT64
 
-GDT_DESC:
-	dw GDT_END - GDT_BEGIN - 1
-	dd GDT_BEGIN
+CODE_SEG equ GDT.Code - GDT
+DATA_SEG equ GDT.Data - GDT
 
-CODE_SEG equ GDT_CODE_SEG - GDT_BEGIN
-DATA_SEG equ GDT_DATA_SEG - GDT_BEGIN
-
-	
-; Magic number
 times 510-($-$$) db 0
 dw 0xaa55

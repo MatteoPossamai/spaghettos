@@ -1,74 +1,50 @@
-BUILD_DIR := build
-SRC_DIR := spaghettos
-ASM_DIR := $(SRC_DIR)/asm
+# Variables
+BUILD_DIR = ./build
+BOOT_ASM = spaghettos/asm/boot.asm 
+KERNEL_ENTRY_ASM = spaghettos/asm/kernel_entry.asm 
+LINKER_SCRIPT = spaghettos/linker.ld 
+OUTPUT_BIN = $(BUILD_DIR)/os_image.bin
+KERNEL_DIR ?= ./spaghettos/kernel
 
-# Assembly settings
-AS := nasm
-ASFLAGS := -f elf32
+# Used Softwares
+QEMU = qemu-system-x86_64 
+AS = nasm
 
-# Linker settings
-LD := ld
-LDFLAGS := -m elf_i386 -T spaghettos/linker.ld
+# Rules
+all: $(OUTPUT_BIN) 
 
-CC := gcc
-COMPILER_FLAGS := -m32 -fno-pie -ffreestanding -Wall -Wextra
-COMPILE_CMD = $(CC) $(COMPILER_FLAGS) -c $< -o $@
-SRC_EXT := c
-OBJ_EXT := o
-KERNEL_DIR := $(SRC_DIR)/kernel
-
-
-# Find source files
-SRCS := $(shell find $(KERNEL_DIR) -name '*.$(SRC_EXT)')
-ASM_SRCS := $(shell find $(ASM_DIR) -name '*.asm')
-
-# Generate object file names
-OBJS := $(SRCS:$(SRC_DIR)/%.$(SRC_EXT)=$(BUILD_DIR)/%.$(OBJ_EXT))
-ASM_OBJS := $(filter-out $(BUILD_DIR)/asm/boot.o, $(ASM_SRCS:$(SRC_DIR)/%.asm=$(BUILD_DIR)/%.o))
-
-# Override LANG environment variable
-export LANG=C
-
-# Main targets
-.PHONY: all clean run
-
-all: $(BUILD_DIR)/os-image
-	@echo "Build completed successfully for $(LANG)"
-
-run: all
-	@echo "Starting QEMU..."
-	qemu-system-i386 -display sdl -drive format=raw,file=$(BUILD_DIR)/os-image
-
-clean:
-	@echo "Cleaning build directory..."
-	rm -rf $(BUILD_DIR)
-
-# Build rules
-$(BUILD_DIR)/os-image: $(BUILD_DIR)/boot.bin $(BUILD_DIR)/kernel.bin
-	@echo "Creating final OS image..."
-	cat $^ > $@
-
-$(BUILD_DIR)/boot.bin: $(ASM_DIR)/boot.asm
+# Compile ./spaghettos/asm/boot.asm
+$(BUILD_DIR)/boot.bin: $(BOOT_ASM)
+	@mkdir -p $(BUILD_DIR) 
 	@echo "Compiling boot sector..."
-	@mkdir -p $(dir $@)
 	$(AS) -f bin $< -o $@
 
-$(BUILD_DIR)/kernel.bin: $(BUILD_DIR)/kernel.img
-	@echo "Converting kernel to binary..."
-	objcopy -O binary $< $@
+# Compile ./spaghettos/asm/kernel_entry.asm
+$(BUILD_DIR)/kernel_entry.o: $(KERNEL_ENTRY_ASM)
+	@mkdir -p $(BUILD_DIR) 
+	@echo "Compiling kernel entry..."
+	$(AS) -f elf64 $< -o $@
 
-$(BUILD_DIR)/kernel.img: $(ASM_OBJS) $(OBJS)
-	@echo "Linking kernel..."
-	@mkdir -p $(dir $@)
-	$(LD) $(LDFLAGS) -o $@ $^
+# Compile and import the kernel
+$(BUILD_DIR)/libkernel.a: 
+	@echo "Building kernel library..."
+	@cd $(KERNEL_DIR) && ./build_kernel.sh
+	@cp $(KERNEL_DIR)/build/libkernel.a $(BUILD_DIR)/libkernel.a
 
-# Pattern rules for building object files
-$(BUILD_DIR)/%.o: $(SRC_DIR)/%.$(SRC_EXT)
-	@echo "Compiling $<..."
-	@mkdir -p $(dir $@)
-	$(COMPILE_CMD)
+# Link all together
+$(OUTPUT_BIN): $(BUILD_DIR)/boot.bin $(BUILD_DIR)/kernel_entry.o $(BUILD_DIR)/libkernel.a
+	@echo "Linking kernel and bootloader..."
+	# Link kernel and bootloader separately
+	ld -n -T $(LINKER_SCRIPT) -o $(BUILD_DIR)/kernel.bin \
+	    $(BUILD_DIR)/kernel_entry.o $(BUILD_DIR)/libkernel.a
+	# Concatenate the bootloader and the kernel into one file
+	cat $(BUILD_DIR)/boot.bin $(BUILD_DIR)/kernel.bin > $(OUTPUT_BIN)
+	@echo "OS image created: $(OUTPUT_BIN)"
 
-$(BUILD_DIR)/%.o: $(SRC_DIR)/%.asm
-	@echo "Assembling $<..."
-	@mkdir -p $(dir $@)
-	$(AS) $(ASFLAGS) $< -o $@
+# Run the OS
+run: all
+	@echo "Starting QEMU..."
+	$(QEMU) -display sdl -drive format=raw,file=$(BUILD_DIR)/os_image.bin
+
+clean: 
+	@rm -r $(BUILD_DIR)
