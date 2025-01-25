@@ -1,35 +1,59 @@
-# Makefile for Simple OS
+# Compiler and linker settings
+CC := gcc
+AS := nasm
+LD := ld
 
-# Assembler and flags
-NASM = nasm
-NASMFLAGS = -f bin
+# Compiler flags
+CFLAGS := -m32 -fno-pie -ffreestanding -Wall -Wextra
+ASFLAGS := -f elf32
+LDFLAGS := -m elf_i386 -T spaghettos/linker.ld
 
 # Directories
-SRC_DIR = ./spaghettos/asm
-BUILD_DIR = ../build
+SRC_DIR := spaghettos
+KERNEL_DIR := $(SRC_DIR)
+ASM_DIR := $(SRC_DIR)/asm
+BUILD_DIR := build
 
-# Ensure build directory exists
-$(shell mkdir -p $(BUILD_DIR))
+# Find all source files
+C_SRCS := $(shell find $(KERNEL_DIR) -name '*.c')
+ASM_SRCS := $(shell find $(ASM_DIR) -name '*.asm')
+HEADERS := $(shell find $(KERNEL_DIR) -name '*.h')
 
-# Output binary
-TARGET = $(BUILD_DIR)/boot_sect_simple.bin
+# Generate object file names
+C_OBJS := $(C_SRCS:$(SRC_DIR)/%.c=$(BUILD_DIR)/%.o)
+ASM_OBJS := $(filter-out $(BUILD_DIR)/asm/boot.o, $(ASM_SRCS:$(SRC_DIR)/%.asm=$(BUILD_DIR)/%.o))
 
-# Source files
-SRCS = $(SRC_DIR)/boot.asm $(SRC_DIR)/protected_mode_gdt.asm
+# Main targets
+.PHONY: all clean run
 
-# Default target
-all: $(TARGET)
+all: $(BUILD_DIR)/os-image
 
-# Compile boot sector
-$(TARGET): $(SRCS)
-	$(NASM) $(NASMFLAGS) $(SRC_DIR)/boot.asm -o $(TARGET)
+run: all
+	qemu-system-i386 -display gtk -drive format=raw,file=$(BUILD_DIR)/os-image
 
-# Clean up build artifacts
 clean:
 	rm -rf $(BUILD_DIR)
 
-# Run in QEMU
-run: $(TARGET)
-	qemu-system-x86_64 -nographic -display gtk -drive format=raw,file=$(TARGET)
+# Build rules
+$(BUILD_DIR)/os-image: $(BUILD_DIR)/boot.bin $(BUILD_DIR)/kernel.bin
+	cat $^ > $@
 
-.PHONY: all clean run
+$(BUILD_DIR)/boot.bin: $(ASM_DIR)/boot.asm
+	@mkdir -p $(dir $@)
+	$(AS) -f bin $< -o $@
+
+$(BUILD_DIR)/kernel.bin: $(BUILD_DIR)/kernel.img
+	objcopy -O binary $< $@
+
+$(BUILD_DIR)/kernel.img: $(ASM_OBJS) $(C_OBJS)
+	@mkdir -p $(dir $@)
+	$(LD) $(LDFLAGS) -o $@ $^
+
+# Pattern rules for building object files
+$(BUILD_DIR)/%.o: $(SRC_DIR)/%.c $(HEADERS)
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+$(BUILD_DIR)/%.o: $(SRC_DIR)/%.asm
+	@mkdir -p $(dir $@)
+	$(AS) $(ASFLAGS) $< -o $@

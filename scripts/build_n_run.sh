@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# Give Docker access to the X server
+xhost +local:docker
 IMAGE_NAME="spaghettos"
 
 # Build Docker image

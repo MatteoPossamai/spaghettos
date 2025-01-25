@@ -14,4 +14,3 @@ _start:
 ; ld: NOTE: This behaviour is deprecated and will be removed in a future version of the linker
 ; 
 section .note.GNU-stack noalloc noexec nowrite progbits
-

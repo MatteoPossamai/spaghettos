@@ -1,37 +1,84 @@
-; TODO
-; - Jump from real mode to protected mode (V)
-; - Jump from protected mode to long mode
+[org 0x7c00] 	; Set the offset to bootsector
+[bits 16]		; 16 bit operation
 
-[BITS 16]
-[ORG 0x7C00]
+; Set to video mode
+mov ah, 0x00    ; Set video mode function
+mov al, 0x03    ; Mode 3 (80x25 text mode)
+int 0x10        ; BIOS video interrupt
 
-; Boot sector entry point
-start:
-    ; Clear interrupts and set up segment registers
-    cli
-    xor ax, ax
-    mov ds, ax
-    mov es, ax
-    mov ss, ax
-    mov sp, 0x7C00      ; Set up stack pointer
+; Boot Loader
+mov bx , 0x1000 ; Memory offset to which kernel will be loaded
+mov ah , 0x02   ; Bios Read Sector Function
+mov al , 30     ; No. of sectors to read(If your kernel won't fit into 30 sectors , you may need to provide the correct no. of sectors to read)
+mov ch , 0x00   ; Select Cylinder 0 from harddisk
+mov dh , 0x00   ; Select head 0 from hard disk
+mov cl , 0x02   ; Start Reading from Second sector(Sector just after boot sector)
 
-    ; Enable A20 line (for accessing memory above 1MB)
-    in al, 0x92
-    or al, 2
-    out 0x92, al
+int 0x13        ; Bios Interrupt Relating to Disk functions
 
-    ; Load Global Descriptor Table
-    call load_gdt
 
-    ; Switch to protected mode
-    call switch_to_protected_mode
+; Switch To Protected Mode
+cli  			; Turns Interrupts off
+lgdt [GDT_DESC] ; Loads Our GDT
 
-    ; We should never return here
-    jmp $
+; Set PROTECTION ENABLE bit in CONTROL REGISTER 0 (cr0)
+mov eax , cr0
+or  eax , 0x1
+mov cr0 , eax  ; Switch To Protected Mode
 
-; Include external files for GDT and protected mode switch
-%include "./spaghettos/asm/protected_mode_gdt.asm"
+jmp  CODE_SEG:INIT_PM ; Jumps To Our 32 bit Code
+;Forces the cpu to flush out contents in cache memory
 
-; Pad the boot sector to 510 bytes and add boot signature
-times 510 - ($ - $$) db 0
-dw 0xAA55
+[bits 32]
+
+INIT_PM:
+mov ax , DATA_SEG
+mov ds , ax
+mov ss , ax
+mov es , ax
+mov fs , ax
+mov gs , ax
+
+mov ebp , 0x90000
+mov esp , ebp ; Updates Stack Segment
+
+
+call 0x1000 		
+jmp $ 
+
+; GDT Definition for our Kernel 
+GDT_BEGIN:
+
+GDT_NULL_DESC:;The  Mandatory  Null  Descriptor
+	dd 0x0
+	dd 0x0
+
+GDT_CODE_SEG:
+	dw 0xffff		;Limit
+	dw 0x0			;Base
+	db 0x0			;Base
+	db 10011010b	;Flags
+	db 11001111b	;Flags
+	db 0x0			;Base
+
+GDT_DATA_SEG:
+	dw 0xffff		;Limit
+	dw 0x0			;Base
+	db 0x0			;Base
+	db 10010010b	;Flags
+	db 11001111b	;Flags
+	db 0x0			;Base
+
+GDT_END:
+
+GDT_DESC:
+	dw GDT_END - GDT_BEGIN - 1
+	dd GDT_BEGIN
+
+CODE_SEG equ GDT_CODE_SEG - GDT_BEGIN
+DATA_SEG equ GDT_DATA_SEG - GDT_BEGIN
+
+	
+; Magic number
+times 510-($-$$) db 0
+dw 0xaa55
