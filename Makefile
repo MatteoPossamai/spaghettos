@@ -5,7 +5,7 @@ LD := ld
 GDB := gdb
 
 # Compiler flags
-CFLAGS := -m32 -fno-pie -ffreestanding -Wall -Wextra
+CFLAGS := -g -m32 -fno-pie -ffreestanding -Wall -Wextra
 ASFLAGS := -f elf32
 # TODO: what is elf32
 # TODO: understand why this address does not matter and I can delete the 
@@ -20,8 +20,8 @@ BUILD_DIR := build
 
 # Find all source files
 C_SRCS := $(shell find $(KERNEL_DIR) -name '*.c')
-ASM_SRCS := $(shell find $(ASM_DIR) -name '*.asm')
 HEADERS := $(shell find $(KERNEL_DIR) -name '*.h')
+ASM_SRCS := $(shell find $(ASM_DIR) -name '*.asm')
 
 # Generate object file names
 C_OBJS := $(C_SRCS:$(SRC_DIR)/%.c=$(BUILD_DIR)/%.o)
@@ -39,8 +39,8 @@ clean:
 	rm -rf $(BUILD_DIR)
 
 debug: all
-	qemu-system-i386 -display gtk -drive format=raw,file=$(BUILD_DIR)/os-image &
-	${GDB} -ex "target remote localhost:1234" -ex "symbol-file kernel.img"
+	qemu-system-i386 -s -S -display gtk -drive format=raw,file=$(BUILD_DIR)/os-image &
+	${GDB} -ex "target remote localhost:1234" -ex "symbol-file build/kernel.img"
 
 # Build rules
 $(BUILD_DIR)/os-image: $(BUILD_DIR)/boot.bin $(BUILD_DIR)/kernel.bin
