@@ -53,7 +53,7 @@ $(BUILD_DIR)/boot.bin: $(ASM_DIR)/boot.asm
 $(BUILD_DIR)/kernel.bin: $(BUILD_DIR)/kernel.img
 	objcopy -O binary $< $@
 
-$(BUILD_DIR)/kernel.img: $(ASM_OBJS) $(C_OBJS)
+$(BUILD_DIR)/kernel.img: $(ASM_OBJS) $(C_OBJS) $(BUILD_DIR)/cpu/interrupt.o
 	@mkdir -p $(dir $@)
 	$(LD) $(LDFLAGS) -o $@ $^
 
@@ -64,4 +64,7 @@ $(BUILD_DIR)/%.o: $(SRC_DIR)/%.c $(HEADERS)
 
 $(BUILD_DIR)/%.o: $(SRC_DIR)/%.asm
 	@mkdir -p $(dir $@)
+	$(AS) $(ASFLAGS) $< -o $@
+
+$(BUILD_DIR)/cpu/interrupt.o: $(SRC_DIR)/cpu/interrupt.asm
 	$(AS) $(ASFLAGS) $< -o $@
