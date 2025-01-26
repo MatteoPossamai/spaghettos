@@ -1,5 +1,5 @@
 #include "print.h"
-#include "constants.h"
+#include "../utils/constants.h"
 #include "cursor.h"
 
 void cls() {

@@ -1,5 +1,5 @@
 // #include "../utils/cursor.h"
-#include "../utils/print.h"
+#include "../display/print.h"
 
 
 void kernel_main() {
