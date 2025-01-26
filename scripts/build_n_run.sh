@@ -1,5 +1,8 @@
 #!/bin/bash
 
+set -e
+set -x  
+
 # Give Docker access to the X server
 xhost +local:docker
 IMAGE_NAME="spaghettos"

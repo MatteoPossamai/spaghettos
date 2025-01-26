@@ -1,15 +1,18 @@
 [org 0x7c00] 	; Set the offset to bootsector
-[bits 16]		; 16 bit operation
+[bits 16]		; 16 bit operation -> Real Mode
+; It is a directive that tells the assembler to use 16 as
+; offset for segmentation calculations
 
 ; Set to video mode
 mov ah, 0x00    ; Set video mode function
-mov al, 0x03    ; Mode 3 (80x25 text mode)
+mov al, 0x03   ; Mode 3 (80x25 text mode) ; 0x13 for 320x200 256 color mode 
+; TODO: experiment with different video modes
 int 0x10        ; BIOS video interrupt
 
 ; Boot Loader
 mov bx , 0x1000 ; Memory offset to which kernel will be loaded
 mov ah , 0x02   ; Bios Read Sector Function
-mov al , 30     ; No. of sectors to read(If your kernel won't fit into 30 sectors , you may need to provide the correct no. of sectors to read)
+mov al , 50     ; No. of sectors to read(If your kernel won't fit into 50 sectors , you may need to provide the correct no. of sectors to read)
 mov ch , 0x00   ; Select Cylinder 0 from harddisk
 mov dh , 0x00   ; Select head 0 from hard disk
 mov cl , 0x02   ; Start Reading from Second sector(Sector just after boot sector)

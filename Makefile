@@ -2,11 +2,15 @@
 CC := gcc
 AS := nasm
 LD := ld
+GDB := gdb
 
 # Compiler flags
 CFLAGS := -m32 -fno-pie -ffreestanding -Wall -Wextra
 ASFLAGS := -f elf32
-LDFLAGS := -m elf_i386 -T spaghettos/linker.ld
+# TODO: what is elf32
+# TODO: understand why this address does not matter and I can delete the 
+# whole linker file and still work just fine
+LDFLAGS := -m elf_i386 -T spaghettos/linker.ld #-Ttext 0x1000
 
 # Directories
 SRC_DIR := spaghettos
@@ -33,6 +37,10 @@ run: all
 
 clean:
 	rm -rf $(BUILD_DIR)
+
+debug: all
+	qemu-system-i386 -display gtk -drive format=raw,file=$(BUILD_DIR)/os-image &
+	${GDB} -ex "target remote localhost:1234" -ex "symbol-file kernel.img"
 
 # Build rules
 $(BUILD_DIR)/os-image: $(BUILD_DIR)/boot.bin $(BUILD_DIR)/kernel.bin
