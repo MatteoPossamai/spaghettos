@@ -1,7 +1,7 @@
 #include "keyboard.h"
 #include "../cpu/isr.h"
 #include "../display/print.h"
-#include "../memory/memory.h"
+#include "../libc/mem.h"
 #include "ports.h"
 
 #define KEYUP_OFFSET 0x80
