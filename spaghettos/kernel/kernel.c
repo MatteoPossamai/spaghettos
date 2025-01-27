@@ -1,10 +1,13 @@
 #include "../cpu/isr.h"
-#include "../display/print.h"
+#include "../cpu/timer.h"
+#include "../drivers/keyboard.h"
 
 void kernel_main() {
-    set_monitor_color(0x34);
     isr_install();
-    /* Test the interrupts */
-    __asm__ __volatile__("int $2");
-    __asm__ __volatile__("int $9");
+
+    asm volatile("sti");
+    init_timer(50);
+    /* Comment out the timer IRQ handler to read
+     * the keyboard IRQs easier */
+    init_keyboard();
 }
